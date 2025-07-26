@@ -10,7 +10,7 @@
       padding: 0;
       overflow: hidden;
       background: #87CEEB;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       height: 100%;
       width: 100%;
       touch-action: none;
@@ -18,6 +18,9 @@
 
     canvas {
       display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
       touch-action: none;
     }
 
@@ -27,20 +30,20 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0, 0, 0, 0.85);
       color: white;
-      font-size: 24px;
+      font-size: 22px;
       display: none;
       justify-content: center;
       align-items: center;
-      z-index: 999;
       text-align: center;
       padding: 20px;
+      z-index: 1000;
     }
   </style>
 </head>
 <body>
-  <div id="rotateMessage">📱 Please rotate your device to <strong>landscape</strong> mode to play!</div>
+  <div id="rotateMessage">Please rotate your device to landscape mode to play the game.</div>
   <canvas id="gameCanvas"></canvas>
 
   <script>
@@ -48,31 +51,16 @@
     const ctx = canvas.getContext("2d");
     const rotateMessage = document.getElementById("rotateMessage");
 
-    let ball = {
-      x: 150,
-      y: 150,
-      r: 30,
-      vx: 0,
-      vy: 0,
-      isDragging: false,
-      launched: false
-    };
-
-    let gravity = 0.5;
-    let friction = 0.98;
-    let ground = 100;
-
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
 
-    function isPortrait() {
-      return window.innerHeight > window.innerWidth;
-    }
-
     function checkOrientation() {
-      if (isPortrait() && /Mobi|Android/i.test(navigator.userAgent)) {
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      const isPortrait = window.innerHeight > window.innerWidth;
+
+      if (isMobile && isPortrait) {
         rotateMessage.style.display = "flex";
         canvas.style.display = "none";
       } else {
@@ -84,6 +72,26 @@
 
     window.addEventListener("resize", checkOrientation);
     window.addEventListener("orientationchange", checkOrientation);
+
+    // Basic Ball Object
+    const ball = {
+      x: 150,
+      y: 150,
+      r: 30,
+      vx: 0,
+      vy: 0,
+      isDragging: false,
+      launched: false
+    };
+
+    const gravity = 0.5;
+    const friction = 0.98;
+    const ground = 100;
+
+    function drawGround() {
+      ctx.fillStyle = "#228B22";
+      ctx.fillRect(0, canvas.height - ground, canvas.width, ground);
+    }
 
     function drawBall() {
       ctx.beginPath();
@@ -106,11 +114,6 @@
           ball.vy *= -0.6;
         }
       }
-    }
-
-    function drawGround() {
-      ctx.fillStyle = "#228B22";
-      ctx.fillRect(0, canvas.height - ground, canvas.width, ground);
     }
 
     function animate() {
@@ -188,7 +191,6 @@
       }
     });
 
-    // Load
     window.addEventListener("load", () => {
       checkOrientation();
       resizeCanvas();
