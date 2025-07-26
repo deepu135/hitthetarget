@@ -8,13 +8,14 @@
     html, body {
       margin: 0;
       padding: 0;
-      background: #87CEEB;
       overflow: hidden;
-      touch-action: none;
+      background: #87CEEB;
       font-family: Arial;
       height: 100%;
       width: 100%;
+      touch-action: none;
     }
+
     canvas {
       display: block;
       touch-action: none;
@@ -26,7 +27,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: #000000cc;
+      background: rgba(0,0,0,0.8);
       color: white;
       font-size: 24px;
       display: none;
@@ -39,13 +40,27 @@
   </style>
 </head>
 <body>
-  <div id="rotateMessage">📱 Please rotate your device to <strong>landscape</strong> mode to play this game.</div>
+  <div id="rotateMessage">📱 Please rotate your device to <strong>landscape</strong> mode to play!</div>
   <canvas id="gameCanvas"></canvas>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const rotateMessage = document.getElementById("rotateMessage");
+
+    let ball = {
+      x: 150,
+      y: 150,
+      r: 30,
+      vx: 0,
+      vy: 0,
+      isDragging: false,
+      launched: false
+    };
+
+    let gravity = 0.5;
+    let friction = 0.98;
+    let ground = 100;
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -70,33 +85,114 @@
     window.addEventListener("resize", checkOrientation);
     window.addEventListener("orientationchange", checkOrientation);
 
-    // Try to lock landscape if supported (after user tap)
-    function lockLandscape() {
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock("landscape").catch(err => {
-          // Not supported or user denied
-          console.log("Orientation lock failed:", err);
-        });
+    function drawBall() {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fillStyle = "brown";
+      ctx.fill();
+    }
+
+    function updateBall() {
+      if (ball.launched) {
+        ball.vy += gravity;
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        ball.vx *= friction;
+        ball.vy *= friction;
+
+        if (ball.y + ball.r > canvas.height - ground) {
+          ball.y = canvas.height - ground - ball.r;
+          ball.vy *= -0.6;
+        }
       }
     }
 
-    // Sample ball draw to show canvas is working
-    function drawBall() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "brown";
-      ctx.beginPath();
-      ctx.arc(canvas.width / 2, canvas.height / 2, 30, 0, Math.PI * 2);
-      ctx.fill();
-      requestAnimationFrame(drawBall);
+    function drawGround() {
+      ctx.fillStyle = "#228B22";
+      ctx.fillRect(0, canvas.height - ground, canvas.width, ground);
     }
 
-    // Wait for user interaction to request landscape
-    window.addEventListener("click", lockLandscape, { once: true });
-    window.addEventListener("touchstart", lockLandscape, { once: true });
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGround();
+      drawBall();
+      updateBall();
+      requestAnimationFrame(animate);
+    }
 
+    function getCanvasCoords(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    // Mouse Events
+    canvas.addEventListener("mousedown", e => {
+      const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+      const dx = x - ball.x;
+      const dy = y - ball.y;
+      if (Math.sqrt(dx * dx + dy * dy) < ball.r) {
+        ball.isDragging = true;
+      }
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      if (ball.isDragging) {
+        const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+        ball.x = x;
+        ball.y = y;
+      }
+    });
+
+    canvas.addEventListener("mouseup", e => {
+      if (ball.isDragging) {
+        const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+        ball.isDragging = false;
+        ball.launched = true;
+        ball.vx = (150 - x) * 0.2;
+        ball.vy = (150 - y) * 0.2;
+      }
+    });
+
+    // Touch Events
+    canvas.addEventListener("touchstart", e => {
+      const touch = e.touches[0];
+      const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
+      const dx = x - ball.x;
+      const dy = y - ball.y;
+      if (Math.sqrt(dx * dx + dy * dy) < ball.r) {
+        ball.isDragging = true;
+      }
+    });
+
+    canvas.addEventListener("touchmove", e => {
+      if (ball.isDragging) {
+        const touch = e.touches[0];
+        const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
+        ball.x = x;
+        ball.y = y;
+      }
+    });
+
+    canvas.addEventListener("touchend", e => {
+      if (ball.isDragging) {
+        const touch = e.changedTouches[0];
+        const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
+        ball.isDragging = false;
+        ball.launched = true;
+        ball.vx = (150 - x) * 0.2;
+        ball.vy = (150 - y) * 0.2;
+      }
+    });
+
+    // Load
     window.addEventListener("load", () => {
       checkOrientation();
-      drawBall(); // Call your actual game start here
+      resizeCanvas();
+      animate();
     });
   </script>
 </body>
