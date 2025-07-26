@@ -5,64 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>2D Slingshot Game</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      background: #87CEEB;
+      padding: 0;
       overflow: hidden;
+      background: #87CEEB;
       font-family: Arial;
+      height: 100%;
+      width: 100%;
       touch-action: none;
     }
+
     canvas {
       display: block;
       touch-action: none;
     }
+
     #info, #nextLevel, #levelText, #restartButton, #winMessage, #hitMessage, #missMessage {
       position: absolute;
-      font-size: 20px;
+      font-size: clamp(16px, 2.5vw, 22px);
       background: rgba(0, 0, 0, 0.7);
       color: white;
       padding: 10px 20px;
       border-radius: 8px;
       display: none;
-      z-index: 1;
+      z-index: 10;
       text-align: center;
     }
-    #info {
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-    #nextLevel {
-      top: 40%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 30px;
-    }
-    #levelText {
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 18px;
-      background: rgba(0, 0, 0, 0.5);
-    }
-    #restartButton {
-      top: 10px;
-      left: 20px;
-      cursor: pointer;
-    }
-    #winMessage {
-      top: 40%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 32px;
-      background: rgba(0, 128, 0, 0.9);
-    }
-    #hitMessage, #missMessage {
-      top: 50%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 24px;
-    }
+
+    #info { top: 20px; left: 50%; transform: translateX(-50%); }
+    #nextLevel { top: 40%; left: 50%; transform: translateX(-50%); font-size: clamp(24px, 4vw, 36px); }
+    #levelText { top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.5); }
+    #restartButton { top: 10px; left: 10px; cursor: pointer; }
+    #winMessage { top: 40%; left: 50%; transform: translateX(-50%); font-size: clamp(24px, 4vw, 36px); background: rgba(0, 128, 0, 0.9); }
+    #hitMessage, #missMessage { top: 50%; left: 50%; transform: translateX(-50%); font-size: clamp(20px, 3.5vw, 28px); }
   </style>
 </head>
 <body>
@@ -78,8 +54,6 @@
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
     const info = document.getElementById("info");
     const nextLevelText = document.getElementById("nextLevel");
@@ -89,7 +63,9 @@
     const hitMessage = document.getElementById("hitMessage");
     const missMessage = document.getElementById("missMessage");
 
-    let ball = { x: 300, y: canvas.height - 250, r: 20, vx: 0, vy: 0, isDragging: false, launched: false };
+    let ball = {};
+    let ballStartX = 0;
+    let ballStartY = 0;
     let targetBall = null;
     let gravity = 0.6;
     let friction = 0.99;
@@ -101,32 +77,54 @@
     let gameRunning = true;
     let shotTaken = false;
 
-    restartButton.addEventListener("click", () => {
-      winMessage.style.display = "none";
-      hitMessage.style.display = "none";
-      missMessage.style.display = "none";
+    function setupGame() {
+      resizeCanvas();
       createLevel(level);
-      resetBall();
       updateLevelText();
-      gameRunning = true;
-    });
+      animate();
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      ballStartX = canvas.width * 0.15;
+      ballStartY = canvas.height - 250;
+
+      ball = {
+        x: ballStartX,
+        y: ballStartY,
+        r: canvas.width * 0.02,
+        vx: 0,
+        vy: 0,
+        isDragging: false,
+        launched: false
+      };
+    }
 
     function createLevel(lv) {
       boxes = [];
-      const boxW = 70, boxH = 40;
-      const baseX = canvas.width - 250;
+      const boxW = canvas.width * 0.07;
+      const boxH = canvas.height * 0.06;
+      const baseX = canvas.width * 0.75;
       for (let i = 0; i < lv + 2; i++) {
         boxes.push({ x: baseX, y: canvas.height - groundHeight - (i + 1) * boxH, w: boxW, h: boxH });
       }
       const top = boxes[boxes.length - 1];
-      targetBall = { x: top.x + top.w / 2, y: top.y - 25, r: 20, vy: 0, falling: false };
+      targetBall = {
+        x: top.x + top.w / 2,
+        y: top.y - 25,
+        r: canvas.width * 0.02,
+        vy: 0,
+        falling: false
+      };
       levelComplete = false;
       shotTaken = false;
     }
 
     function resetBall() {
-      ball.x = 300;
-      ball.y = canvas.height - 250;
+      ball.x = ballStartX;
+      ball.y = ballStartY;
       ball.vx = 0;
       ball.vy = 0;
       ball.launched = false;
@@ -184,7 +182,6 @@
           ball.x + ball.r > box.x && ball.x - ball.r < box.x + box.w &&
           ball.y + ball.r > box.y && ball.y - ball.r < box.y + box.h
         ) {
-          // Bounce off pillar
           const overlapX = (ball.x < box.x + box.w / 2) ? ball.x + ball.r - box.x : box.x + box.w - (ball.x - ball.r);
           const overlapY = (ball.y < box.y + box.h / 2) ? ball.y + ball.r - box.y : box.y + box.h - (ball.y - ball.r);
 
@@ -228,7 +225,7 @@
     function drawSlingshotLine() {
       if (ball.isDragging) {
         ctx.beginPath();
-        ctx.moveTo(300, canvas.height - 250);
+        ctx.moveTo(ballStartX, ballStartY);
         ctx.lineTo(ball.x, ball.y);
         ctx.strokeStyle = "black";
         ctx.lineWidth = 2;
@@ -284,15 +281,15 @@
       if (ball.isDragging) {
         ball.isDragging = false;
         ball.launched = true;
-        ball.vx = (300 - ball.x) * 0.2;
-        ball.vy = (canvas.height - 250 - ball.y) * 0.2;
+        ball.vx = (ballStartX - ball.x) * 0.2;
+        ball.vy = (ballStartY - ball.y) * 0.2;
       }
     }
 
+    // Touch/Mouse Events
     canvas.addEventListener("mousedown", e => startDrag(e.offsetX, e.offsetY));
     canvas.addEventListener("mousemove", e => dragMove(e.offsetX, e.offsetY));
     canvas.addEventListener("mouseup", e => endDrag(e.offsetX, e.offsetY));
-
     canvas.addEventListener("touchstart", e => {
       const touch = e.touches[0];
       startDrag(touch.clientX, touch.clientY);
@@ -306,12 +303,32 @@
       endDrag(touch.clientX, touch.clientY);
     });
 
-    info.style.display = "block";
-    restartButton.style.display = "block";
-    setTimeout(() => info.style.display = "none", 4000);
-    createLevel(level);
-    updateLevelText();
-    animate();
+    restartButton.addEventListener("click", () => {
+      winMessage.style.display = "none";
+      hitMessage.style.display = "none";
+      missMessage.style.display = "none";
+      createLevel(level);
+      resetBall();
+    });
+
+    window.addEventListener("resize", () => {
+      resizeCanvas();
+      createLevel(level);
+      resetBall();
+    });
+
+    // Try to force landscape on supported devices
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+
+    // Start game when ready
+    window.addEventListener("load", () => {
+      setupGame();
+      info.style.display = "block";
+      restartButton.style.display = "block";
+      setTimeout(() => info.style.display = "none", 4000);
+    });
   </script>
 </body>
 </html>
