@@ -40,20 +40,44 @@
       padding: 20px;
       z-index: 1000;
     }
+
+    #restartButton {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      background: #000;
+      color: #fff;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 1001;
+    }
   </style>
 </head>
 <body>
   <div id="rotateMessage">Please rotate your device to landscape mode to play the game.</div>
+  <button id="restartButton">🔁 Restart</button>
   <canvas id="gameCanvas"></canvas>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const rotateMessage = document.getElementById("rotateMessage");
+    const restartButton = document.getElementById("restartButton");
+
+    let scaleFactor = 1;
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+
+      // Adjust scale based on screen size
+      if (window.innerWidth < 768) scaleFactor = 0.8;
+      else scaleFactor = 1;
+
+      placeTargetAndPillar();
     }
 
     function checkOrientation() {
@@ -84,22 +108,31 @@
     };
 
     const targetBall = {
-      x: 800,
-      y: 200,
+      x: 0,
+      y: 0,
       r: 25,
       vy: 0,
       falling: false
     };
 
-    const boxes = [
-      { x: 780, y: 300, w: 40, h: 80 },
-      { x: 780, y: 220, w: 40, h: 80 },
-      { x: 780, y: 140, w: 40, h: 80 }
-    ];
-
+    const boxes = [];
     const gravity = 0.5;
     const friction = 0.98;
     const ground = 100;
+
+    function placeTargetAndPillar() {
+      boxes.length = 0;
+      const baseX = canvas.width * 0.75;
+      const baseY = canvas.height - ground;
+      const boxW = 40 * scaleFactor;
+      const boxH = 60 * scaleFactor;
+      for (let i = 0; i < 4; i++) {
+        boxes.push({ x: baseX, y: baseY - (i + 1) * boxH, w: boxW, h: boxH });
+      }
+      const topBox = boxes[boxes.length - 1];
+      targetBall.x = topBox.x + topBox.w / 2;
+      targetBall.y = topBox.y - targetBall.r;
+    }
 
     function drawGround() {
       ctx.fillStyle = "#228B22";
@@ -114,7 +147,7 @@
     }
 
     function drawBoxes() {
-      ctx.fillStyle = "#666";
+      ctx.fillStyle = "#8B4513";
       boxes.forEach(box => {
         ctx.fillRect(box.x, box.y, box.w, box.h);
       });
@@ -124,7 +157,6 @@
       if (targetBall.falling) {
         targetBall.vy += gravity;
         targetBall.y += targetBall.vy;
-
         if (targetBall.y + targetBall.r > canvas.height - ground) {
           targetBall.y = canvas.height - ground - targetBall.r;
           targetBall.vy = 0;
@@ -145,6 +177,29 @@
           ball.y = canvas.height - ground - ball.r;
           ball.vy *= -0.6;
         }
+
+        // Collision with pillar
+        boxes.forEach(box => {
+          if (
+            ball.x + ball.r > box.x && ball.x - ball.r < box.x + box.w &&
+            ball.y + ball.r > box.y && ball.y - ball.r < box.y + box.h
+          ) {
+            const overlapX = (ball.x < box.x + box.w / 2)
+              ? ball.x + ball.r - box.x
+              : box.x + box.w - (ball.x - ball.r);
+            const overlapY = (ball.y < box.y + box.h / 2)
+              ? ball.y + ball.r - box.y
+              : box.y + box.h - (ball.y - ball.r);
+
+            if (overlapX < overlapY) {
+              ball.vx *= -0.5;
+              ball.x += (ball.x < box.x + box.w / 2) ? -overlapX : overlapX;
+            } else {
+              ball.vy *= -0.5;
+              ball.y += (ball.y < box.y + box.h / 2) ? -overlapY : overlapY;
+            }
+          }
+        });
       }
     }
 
@@ -245,6 +300,17 @@
         ball.vx = (150 - x) * 0.2;
         ball.vy = (150 - y) * 0.2;
       }
+    });
+
+    restartButton.addEventListener("click", () => {
+      ball.x = 150;
+      ball.y = 150;
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.launched = false;
+      targetBall.falling = false;
+      targetBall.vy = 0;
+      placeTargetAndPillar();
     });
 
     window.addEventListener("load", () => {
