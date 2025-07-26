@@ -73,7 +73,6 @@
     window.addEventListener("resize", checkOrientation);
     window.addEventListener("orientationchange", checkOrientation);
 
-    // Basic Ball Object
     const ball = {
       x: 150,
       y: 150,
@@ -84,6 +83,20 @@
       launched: false
     };
 
+    const targetBall = {
+      x: 800,
+      y: 200,
+      r: 25,
+      vy: 0,
+      falling: false
+    };
+
+    const boxes = [
+      { x: 780, y: 300, w: 40, h: 80 },
+      { x: 780, y: 220, w: 40, h: 80 },
+      { x: 780, y: 140, w: 40, h: 80 }
+    ];
+
     const gravity = 0.5;
     const friction = 0.98;
     const ground = 100;
@@ -93,11 +106,30 @@
       ctx.fillRect(0, canvas.height - ground, canvas.width, ground);
     }
 
-    function drawBall() {
+    function drawBall(ballObj, color = "brown") {
       ctx.beginPath();
-      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-      ctx.fillStyle = "brown";
+      ctx.arc(ballObj.x, ballObj.y, ballObj.r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
+    }
+
+    function drawBoxes() {
+      ctx.fillStyle = "#666";
+      boxes.forEach(box => {
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+      });
+    }
+
+    function updateTargetBall() {
+      if (targetBall.falling) {
+        targetBall.vy += gravity;
+        targetBall.y += targetBall.vy;
+
+        if (targetBall.y + targetBall.r > canvas.height - ground) {
+          targetBall.y = canvas.height - ground - targetBall.r;
+          targetBall.vy = 0;
+        }
+      }
     }
 
     function updateBall() {
@@ -116,11 +148,37 @@
       }
     }
 
+    function checkCollision() {
+      const dx = ball.x - targetBall.x;
+      const dy = ball.y - targetBall.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < ball.r + targetBall.r) {
+        targetBall.falling = true;
+      }
+    }
+
+    function drawSlingshotLine() {
+      if (ball.isDragging) {
+        ctx.beginPath();
+        ctx.moveTo(150, 150);
+        ctx.lineTo(ball.x, ball.y);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
     function animate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGround();
-      drawBall();
+      drawBoxes();
+      drawBall(ball);
+      drawBall(targetBall, "red");
+      drawSlingshotLine();
       updateBall();
+      updateTargetBall();
+      if (ball.launched) checkCollision();
       requestAnimationFrame(animate);
     }
 
@@ -132,7 +190,6 @@
       };
     }
 
-    // Mouse Events
     canvas.addEventListener("mousedown", e => {
       const { x, y } = getCanvasCoords(e.clientX, e.clientY);
       const dx = x - ball.x;
@@ -160,7 +217,6 @@
       }
     });
 
-    // Touch Events
     canvas.addEventListener("touchstart", e => {
       const touch = e.touches[0];
       const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
